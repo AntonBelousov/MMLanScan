@@ -19,6 +19,13 @@ static const float PING_TIMEOUT = 1;
 @property (nonatomic,strong) NSDictionary *brandDictionary;
 @property(nonatomic,strong)SimplePing *simplePing;
 @property (nonatomic, copy) void (^result)(NSError  * _Nullable error, NSString  * _Nonnull ip);
+
+
+@property(nonatomic,assign)BOOL stopRunLoop;
+@property(nonatomic,strong)NSTimer *keepAliveTimer;
+@property(nonatomic,strong)NSError *errorMessage;
+@property(nonatomic,strong)NSTimer *pingTimer;
+
 @end
 
 @interface PingOperation()
@@ -26,10 +33,7 @@ static const float PING_TIMEOUT = 1;
 @end
 
 @implementation PingOperation {
-    BOOL _stopRunLoop;
-    NSTimer *_keepAliveTimer;
-    NSError *errorMessage;
-    NSTimer *pingTimer;
+    
 }
 
 -(instancetype)initWithIPToPing:(NSString*)ip andCompletionHandler:(nullable void (^)(NSError  * _Nullable error, NSString  * _Nonnull ip))result;{
@@ -62,12 +66,10 @@ static const float PING_TIMEOUT = 1;
     _isExecuting = YES;
     [self didChangeValueForKey:@"isExecuting"];
     
-    
-    NSRunLoop *runLoop = [NSRunLoop currentRunLoop];
-    
+        
     // Run loops don't run if they don't have input sources or timers on them.  So we add a timer that we never intend to fire.
-    _keepAliveTimer = [NSTimer timerWithTimeInterval:1000000.0 target:self selector:@selector(timeout:) userInfo:nil repeats:NO];
-    [runLoop addTimer:_keepAliveTimer forMode:NSDefaultRunLoopMode];
+    self.keepAliveTimer = [NSTimer timerWithTimeInterval:1000000.0 target:self selector:@selector(timeout:) userInfo:nil repeats:NO];
+    [ [NSRunLoop currentRunLoop] addTimer:self.keepAliveTimer forMode:NSDefaultRunLoopMode];
     
     //Ping method
     [self ping];
@@ -75,7 +77,7 @@ static const float PING_TIMEOUT = 1;
     NSTimeInterval updateInterval = 0.1f;
     NSDate *loopUntil = [NSDate dateWithTimeIntervalSinceNow:updateInterval];
     
-    while (!_stopRunLoop && [runLoop runMode: NSDefaultRunLoopMode beforeDate:loopUntil]) {
+    while (!self.stopRunLoop && [[NSRunLoop currentRunLoop] runMode: NSDefaultRunLoopMode beforeDate:loopUntil]) {
         loopUntil = [NSDate dateWithTimeIntervalSinceNow:updateInterval];
     }
 
@@ -88,7 +90,7 @@ static const float PING_TIMEOUT = 1;
     
     //Calling the completion block
     if (self.result) {
-        self.result(errorMessage,self.name);
+        self.result(self.errorMessage,self.name);
     }
     
     [self finish];
@@ -97,18 +99,18 @@ static const float PING_TIMEOUT = 1;
 - (void)timeout:(NSTimer*)timer
 {
     //This method should never get called. (just in case)
-    errorMessage = [NSError errorWithDomain:@"Ping Timeout" code:10 userInfo:nil];
+    self.errorMessage = [NSError errorWithDomain:@"Ping Timeout" code:10 userInfo:nil];
     [self finishedPing];
 }
 
 -(void)finish {
 
     //Removes timer from the NSRunLoop
-    [_keepAliveTimer invalidate];
-    _keepAliveTimer = nil;
+    [self.keepAliveTimer invalidate];
+    self.keepAliveTimer = nil;
     
     //Kill the while loop in the start method
-    _stopRunLoop = YES;
+    self.stopRunLoop = YES;
     
     [self willChangeValueForKey:@"isExecuting"];
     [self willChangeValueForKey:@"isFinished"];
@@ -143,32 +145,32 @@ static const float PING_TIMEOUT = 1;
 
 - (void)simplePing:(SimplePing *)pinger didFailWithError:(NSError *)error {
   
-    [pingTimer invalidate];
-    errorMessage = error;
+    [self.pingTimer invalidate];
+    self.errorMessage = error;
     [self finishedPing];
 }
 
 -(void)simplePing:(SimplePing *)pinger didFailToSendPacket:(NSData *)packet sequenceNumber:(uint16_t)sequenceNumber error:(NSError *)error {
     
-    [pingTimer invalidate];
-    errorMessage = error;
+    [self.pingTimer invalidate];
+    self.errorMessage = error;
     [self finishedPing];
 }
 
 -(void)simplePing:(SimplePing *)pinger didReceivePingResponsePacket:(NSData *)packet sequenceNumber:(uint16_t)sequenceNumber {
    
-    [pingTimer invalidate];
+    [self.pingTimer invalidate];
     [self finishedPing];
 }
 
 -(void)simplePing:(SimplePing *)pinger didSendPacket:(NSData *)packet sequenceNumber:(uint16_t)sequenceNumber {
     //This timer will fired pingTimeOut in case the SimplePing don't answer in the specific time
-    pingTimer = [NSTimer scheduledTimerWithTimeInterval:PING_TIMEOUT target:self selector:@selector(pingTimeOut:) userInfo:nil repeats:NO];
+    self.pingTimer = [NSTimer scheduledTimerWithTimeInterval:PING_TIMEOUT target:self selector:@selector(pingTimeOut:) userInfo:nil repeats:NO];
 }
 
 - (void)pingTimeOut:(NSTimer *)timer {
     // Move to next host
-    errorMessage = [NSError errorWithDomain:@"Ping timeout" code:11 userInfo:nil];
+    self.errorMessage = [NSError errorWithDomain:@"Ping timeout" code:11 userInfo:nil];
     [self finishedPing];
 }
 
