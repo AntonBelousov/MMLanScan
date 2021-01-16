@@ -159,7 +159,7 @@ static const float PING_TIMEOUT = 1;
 }
 
 -(void)simplePing:(SimplePing *)pinger didReceivePingResponsePacket:(NSData *)packet sequenceNumber:(uint16_t)sequenceNumber {
-    NSLog(@"r packet: %@", packet);
+//     NSLog(@"r packet: %@", packet);
     [self.pingTimer invalidate];
     [self finishedPing];
 }
