@@ -74,17 +74,18 @@ static const float PING_TIMEOUT = 1;
     //Ping method
     [self ping];
     
-    NSTimeInterval updateInterval = 0.1f;
-    NSDate *loopUntil = [NSDate dateWithTimeIntervalSinceNow:updateInterval];
+//    NSTimeInterval updateInterval = 0.1f;
+//    NSDate *loopUntil = [NSDate dateWithTimeIntervalSinceNow:updateInterval];
     
-    while (!self.stopRunLoop && [[NSRunLoop currentRunLoop] runMode: NSDefaultRunLoopMode beforeDate:loopUntil]) {
-        loopUntil = [NSDate dateWithTimeIntervalSinceNow:updateInterval];
-    }
+//    while (!self.stopRunLoop && [[NSRunLoop currentRunLoop] runMode: NSDefaultRunLoopMode beforeDate:loopUntil]) {
+//        loopUntil = [NSDate dateWithTimeIntervalSinceNow:updateInterval];
+//    }
 
 }
 -(void)ping {
-
-    [self.simplePing sendPingWithoutHostResolving];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.simplePing sendPingWithoutHostResolving];
+    });
 }
 - (void)finishedPing {
     
@@ -158,7 +159,7 @@ static const float PING_TIMEOUT = 1;
 }
 
 -(void)simplePing:(SimplePing *)pinger didReceivePingResponsePacket:(NSData *)packet sequenceNumber:(uint16_t)sequenceNumber {
-   
+    NSLog(@"r packet: %@", packet);
     [self.pingTimer invalidate];
     [self finishedPing];
 }
